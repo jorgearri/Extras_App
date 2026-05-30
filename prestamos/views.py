@@ -33,28 +33,34 @@ def inventario(request): return render(request, 'inventario.html', {'materiales'
 @login_required
 def prestamos(request):
     if request.method == 'POST':
-        # Procesamiento seguro de datos
+        # --- Lógica original restaurada ---
         try:
             num_control = request.POST.get('numero_control')
             ids = request.POST.getlist('material_id[]')
             cants = request.POST.getlist('cantidad[]')
+            
             for i in range(len(ids)):
                 if ids[i]:
-                    m = Material.objects.filter(id=ids[i]).first()
-                    if m and m.cantidad >= int(cants[i]):
-                        m.cantidad -= int(cants[i])
-                        m.save()
-                        Prestamo.objects.create(nombre_alumno=num_control, material=m, cantidad=int(cants[i]), estado='En Prestamo')
-        except: pass
+                    material = Material.objects.filter(id=ids[i]).first()
+                    if material and material.cantidad >= int(cants[i]):
+                        material.cantidad -= int(cants[i])
+                        material.save()
+                        # Usamos los mismos campos que tenías al principio
+                        Prestamo.objects.create(
+                            nombre_alumno=num_control, 
+                            material=material, 
+                            cantidad=int(cants[i])
+                        )
+        except Exception:
+            pass # Si falla, simplemente recarga la página sin romper el servidor
+            
         return redirect('prestamos')
 
-    # Renderizado blindado para que no cause Error 500
-    materiales = Material.objects.all()
-    try:
-        prestamos_lista = Prestamo.objects.all().order_by('-id')
-    except:
-        prestamos_lista = []
-    return render(request, 'prestamos.html', {'materiales': materiales, 'prestamos': prestamos_lista})
+    # --- Renderizado ---
+    return render(request, 'prestamos.html', {
+        'materiales': Material.objects.all(),
+        'prestamos': Prestamo.objects.all().order_by('-id')
+    })
 
 # --- GESTIÓN Y APIS (TODO ORIGINAL) ---
 def panel_principal(request): return render(request, 'panel.html')
