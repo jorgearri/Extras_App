@@ -1,39 +1,150 @@
-from django.contrib import admin
-from django.urls import path
-from prestamos import views 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from django.http import JsonResponse
+from django.db.models import Q
+from django.views.decorators.csrf import csrf_exempt
+import json
+import math
+from datetime import date
+from .models import Material, Prestamo, Alumno, PrestadorServicio, AsistenciaServicio
 
-urlpatterns = [
-    path('admin/', admin.site.urls),
+# --- AUTENTICACIÓN ---
+def login_principal(request): 
+    if request.method == 'POST':
+        u = request.POST.get('username')
+        p = request.POST.get('password')
+        user = authenticate(username=u, password=p)
+        if user:
+            login(request, user)
+            return redirect('home')
+    return render(request, 'login.html')
 
-    # AUTENTICACIÓN
-    path('', views.login_principal, name='login_principal'),
-    path('inicio/', views.home, name='home'),
-    path('logout/', views.logout_view, name='logout'),
-    
-    # NAVEGACIÓN PRINCIPAL
-    path('checador/', views.panel_principal, name='panel_principal'),
-    path('inventario/', views.inventario, name='inventario'),
-    path('prestamos/', views.prestamos, name='prestamos'),
-    
-    # SERVICIO SOCIAL
-    path('servicio-social/', views.servicio_social, name='servicio_social'),
-    path('panel-servicio/', views.panel_servicio, name='panel_servicio'),
-    
-    # ACCIONES Y REGISTROS
-    path('registrar-alumno/', views.registrar_alumno_rapido, name='registrar_alumno_rapido'),
-    path('devolver-material/<int:prestamo_id>/', views.devolver_material, name='devolver_material'),
-    path('agregar-material/', views.agregar_material, name='agregar_material'),
-    path('eliminar-material/<int:material_id>/', views.eliminar_material, name='eliminar_material'),
-    path('acceso-restringido/', views.acceso_admin_secreto, name='acceso_restringido'),
+def logout_view(request):
+    logout(request)
+    return redirect('login_principal')
 
-    # RUTAS LEGACY
-    path('login-inventario/', views.login_principal, name='login_inventario'),
-    path('login-servicio/', views.login_principal, name='login_servicio'),
+# --- VISTAS PROTEGIDAS ---
+@login_required
+def home(request): return render(request, 'home.html')
+
+@login_required
+def inventario(request):
+    return render(request, 'inventario.html', {'materiales': Material.objects.all()})
+
+@login_required
+def prestamos(request):
+    # Corregido de fecha_prestamo a fecha para que coincida con tu Model
+    return render(request, 'prestamos.html', {'prestamos': Prestamo.objects.filter(fecha=date.today()).order_by('-id')})
+
+def panel_principal(request): 
+    return render(request, 'panel.html')
+
+@login_required
+def servicio_social(request): 
+    return render(request, 'servicio_social.html')
+
+@login_required
+def panel_servicio(request):
+    return render(request, 'panel_servicio.html', {'prestadores': PrestadorServicio.objects.all()})
+
+# --- GESTIÓN RÁPIDA ---
+@login_required
+def registrar_alumno_rapido(request):
+    if request.method == 'POST':
+        no_control = request.POST.get('nuevo_num_control')
+        nombre = request.POST.get('nuevo_nombre')
+        if no_control and nombre:
+            Alumno.objects.get_or_create(numero_control=no_control, defaults={'nombre_completo': nombre})
+    return redirect('prestamos')
+
+@login_required
+def devolver_material(request, prestamo_id):
+    prestamo = get_object_or_404(Prestamo, id=prestamo_id)
+    prestamo.material.cantidad += prestamo.cantidad
+    prestamo.material.save()
+    prestamo.estado = 'Devuelto'
+    prestamo.save()
+    return redirect('prestamos')
+
+@login_required
+def agregar_material(request): 
+    return redirect('inventario')
+
+@login_required
+def eliminar_material(request, material_id):
+    get_object_or_404(Material, id=material_id).delete()
+    return redirect('inventario')
+
+# --- APIS Y RECONOCIMIENTO FACIAL ---
+def buscar_alumnos_api(request):
+    query = request.GET.get('q', '')
+    if query:
+        alumnos = Alumno.objects.filter(Q(nombre_completo__icontains=query) | Q(numero_control__icontains=query))[:10]
+        resultados = [{'numero_control': a.numero_control, 'nombre_completo': a.nombre_completo} for a in alumnos]
+        return JsonResponse(resultados, safe=False)
+    return JsonResponse([], safe=False)
     
-    # APIS
-    path('api/buscar-alumnos/', views.buscar_alumnos_api, name='buscar_alumnos_api'),
-    path('api/buscar-materiales/', views.buscar_materiales_api, name='buscar_materiales_api'),
-    path('api/registrar-rostro/', views.registrar_rostro_api, name='registrar_rostro_api'),
-    path('api/marcar-asistencia/', views.marcar_asistencia_api, name='marcar_asistencia_api'),
-    path('api/agregar-horas-manual/', views.agregar_horas_manual_api, name='agregar_horas_manual_api'),
-]
+def buscar_materiales_api(request):
+    query = request.GET.get('q', '')
+    if query:
+        materiales = Material.objects.filter(nombre__icontains=query)[:10]
+        resultados = [{'id': m.id, 'nombre': m.nombre} for m in materiales]
+        return JsonResponse(resultados, safe=False)
+    return JsonResponse([], safe=False)
+
+@csrf_exempt
+def registrar_rostro_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            no_control = data.get('numero_control')
+            nombre = data.get('nombre_completo')
+            descriptor = data.get('datos_faciales')
+            prestador, _ = PrestadorServicio.objects.get_or_create(numero_control=no_control, defaults={'nombre_completo': name})
+            prestador.datos_faciales = json.dumps(descriptor)
+            prestador.save()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'mensaje': str(e)}, status=400)
+    return JsonResponse({'status': 'error'}, status=400)
+
+@csrf_exempt
+def marcar_asistencia_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            descriptor_recibido = data.get('datos_faciales')
+            prestadores = PrestadorServicio.objects.all()
+            for p in prestadores:
+                if p.datos_faciales:
+                    descriptor_db = json.loads(p.datos_faciales)
+                    if math.sqrt(sum((a - b) ** 2 for a, b in zip(descriptor_recibido, descriptor_db))) < 0.6:
+                        AsistenciaServicio.objects.create(prestador=p, tipo='Entrada')
+                        return JsonResponse({'status': 'success', 'mensaje': f'Bienvenido {p.nombre_completo}'})
+            return JsonResponse({'status': 'error', 'mensaje': 'Rostro no reconocido'}, status=400)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'mensaje': str(e)}, status=400)
+    return JsonResponse({'status': 'error'}, status=400)
+
+@csrf_exempt
+def agregar_horas_manual_api(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            prestador = get_object_or_404(PrestadorServicio, id=data['id'])
+            AsistenciaServicio.objects.create(prestador=prestador, tipo='Entrada')
+            return JsonResponse({'status': 'ok'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error'}, status=400)
+
+def acceso_admin_secreto(request):
+    if request.method == 'POST':
+        if request.POST.get('clave', '').lower() == 'extra2026':
+            admin_user = User.objects.filter(is_superuser=True).first()
+            if admin_user:
+                login(request, admin_user)
+                return redirect(request.GET.get('next', '/admin/'))
+    return render(request, 'login_admin.html')
