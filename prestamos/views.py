@@ -75,8 +75,9 @@ def prestamos(request):
             if request.content_type == 'application/json':
                 return JsonResponse({'status': 'error', 'mensaje': str(e)})
 
+    # Esta parte se ejecuta siempre, asegurando que la página cargue los datos correctamente
     materiales_disponibles = Material.objects.filter(cantidad__gt=0)
-    prestamos_activos = Prestamo.objects.filter(devuelto=False).order_by('-id')
+    prestamos_activos = Prestamo.objects.exclude(estado='Devuelto').order_by('-id')
 
     contexto = {
         'materiales': materiales_disponibles,
@@ -94,7 +95,6 @@ def servicio_social(request):
 @login_required
 def panel_servicio(request):
     return render(request, 'panel_servicio.html', {'datos': PrestadorServicio.objects.all()})
-
 
 # --- GESTIÓN RÁPIDA ---
 @login_required
