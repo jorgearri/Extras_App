@@ -35,7 +35,65 @@ def inventario(request):
 
 @login_required
 def prestamos(request):
-    return render(request, 'prestamos.html', {'prestamos': Prestamo.objects.all().order_by('-id')})
+    def prestamos(request):
+    # --- 1. PROCESAR UN NUEVO PRÉSTAMO ---
+    if request.method == 'POST':
+        try:
+            # Opción A: Si viene por AJAX (JSON)
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                nombre_alumno = data.get('nombre_alumno')
+                material_id = data.get('material_id')
+                cantidad = int(data.get('cantidad', 1))
+            # Opción B: Si viene por un formulario normal
+            else:
+                nombre_alumno = request.POST.get('nombre_alumno')
+                material_id = request.POST.get('material')
+                cantidad = int(request.POST.get('cantidad', 1))
+
+            # Buscamos el material en el inventario
+            material = Material.objects.get(id=material_id)
+
+            # Validamos que haya suficiente stock
+            if material.cantidad < cantidad:
+                if request.content_type == 'application/json':
+                    return JsonResponse({'status': 'error', 'mensaje': f'No hay suficiente {material.nombre} en inventario. Solo quedan {material.cantidad}.'})
+                else:
+                    # Podrías agregar un mensaje de error usando messages.error() aquí
+                    return redirect('prestamos')
+
+            # Descontamos el material del almacén
+            material.cantidad -= cantidad
+            material.save()
+
+            # Guardamos el préstamo
+            Prestamo.objects.create(
+                nombre_alumno=nombre_alumno,
+                material=material,
+                cantidad=cantidad
+            )
+
+            if request.content_type == 'application/json':
+                return JsonResponse({'status': 'success', 'mensaje': 'Préstamo registrado exitosamente.'})
+            else:
+                return redirect('prestamos')
+
+        except Material.DoesNotExist:
+             if request.content_type == 'application/json':
+                 return JsonResponse({'status': 'error', 'mensaje': 'El material seleccionado no existe.'})
+        except Exception as e:
+            if request.content_type == 'application/json':
+                 return JsonResponse({'status': 'error', 'mensaje': str(e)})
+
+    # --- 2. MOSTRAR LA PÁGINA (Si no es POST) ---
+    materiales_disponibles = Material.objects.filter(cantidad__gt=0) # Solo los que tienen stock
+    prestamos_activos = Prestamo.objects.filter(devuelto=False).order_by('-id')
+
+    contexto = {
+        'materiales': materiales_disponibles,
+        'prestamos': prestamos_activos
+    }
+    return render(request, 'prestamos.html', contexto)
 
 def panel_principal(request): 
     return render(request, 'panel.html')
