@@ -7,7 +7,6 @@ from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
 import json
 import math
-from datetime import date
 from .models import Material, Prestamo, Alumno, PrestadorServicio, AsistenciaServicio
 
 # --- AUTENTICACIÓN ---
@@ -37,23 +36,27 @@ def inventario(request):
 @login_required
 def prestamos(request):
     if request.method == 'POST':
-        try:
-            nombre_alumno = request.POST.get('nombre_alumno')
-            material_id = request.POST.get('material')
-            cantidad = int(request.POST.get('cantidad', 1))
+        # LEEMOS LOS DATOS EXACTOS QUE ENVÍA TU HTML
+        num_control = request.POST.get('numero_control')
+        material_ids = request.POST.getlist('material_id[]')
+        cantidades = request.POST.getlist('cantidad[]')
 
-            material = Material.objects.filter(id=material_id).first()
-            if material and material.cantidad >= cantidad:
-                material.cantidad -= cantidad
-                material.save()
-                Prestamo.objects.create(nombre_alumno=nombre_alumno, material=material, cantidad=cantidad, estado='En Prestamo')
-            return redirect('prestamos')
-        except Exception:
-            return redirect('prestamos')
+        # Procesamos cada material enviado en la lista
+        for i in range(len(material_ids)):
+            m_id = material_ids[i]
+            if m_id: # Solo si tiene ID
+                qty = int(cantidades[i])
+                material = Material.objects.filter(id=m_id).first()
+                if material and material.cantidad >= qty:
+                    material.cantidad -= qty
+                    material.save()
+                    Prestamo.objects.create(nombre_alumno=num_control, material=material, cantidad=qty, estado='En Prestamo')
+        return redirect('prestamos')
 
-    materiales_disponibles = Material.objects.all()
-    prestamos_activos = Prestamo.objects.exclude(estado='Devuelto').order_by('-id')
-    return render(request, 'prestamos.html', {'materiales': materiales_disponibles, 'prestamos': prestamos_activos})
+    return render(request, 'prestamos.html', {
+        'materiales': Material.objects.all(),
+        'prestamos': Prestamo.objects.exclude(estado='Devuelto').order_by('-id')
+    })
 
 # --- GESTIÓN ---
 def panel_principal(request): return render(request, 'panel.html')
@@ -113,6 +116,7 @@ def marcar_asistencia_api(request):
         descriptor_recibido = data.get('datos_faciales')
         for p in PrestadorServicio.objects.all():
             if p.datos_faciales:
+                # Restaurada la lógica original de distancia
                 distancia = math.sqrt(sum((a - b) ** 2 for a, b in zip(descriptor_recibido, json.loads(p.datos_faciales))))
                 if distancia < 0.6:
                     p.activo = not p.activo
