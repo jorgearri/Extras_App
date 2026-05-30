@@ -128,8 +128,18 @@ def marcar_asistencia_api(request):
                         break
             
             if mejor_match:
-                AsistenciaServicio.objects.create(prestador=mejor_match, tipo='Entrada')
-                return JsonResponse({'status': 'success', 'mensaje': f'Bienvenido {mejor_match.nombre_completo}'})
+                # La magia del Toggle: ¿Ya estaba adentro?
+                if mejor_match.activo:
+                    AsistenciaServicio.objects.create(prestador=mejor_match, tipo='Salida')
+                    mejor_match.activo = False
+                    mejor_match.save()
+                    return JsonResponse({'status': 'success', 'mensaje': f'Salida registrada. ¡Hasta luego, {mejor_match.nombre_completo}!'})
+                else:
+                    AsistenciaServicio.objects.create(prestador=mejor_match, tipo='Entrada')
+                    mejor_match.activo = True
+                    mejor_match.save()
+                    return JsonResponse({'status': 'success', 'mensaje': f'Entrada registrada. ¡Bienvenido, {mejor_match.nombre_completo}!'})
+                    
             return JsonResponse({'status': 'error', 'mensaje': 'Rostro no reconocido'}, status=400)
         except Exception as e:
             return JsonResponse({'status': 'error', 'mensaje': str(e)}, status=400)

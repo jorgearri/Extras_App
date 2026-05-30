@@ -37,7 +37,7 @@
                     {{ alumno.horas_acumuladas }} / 480h
                 </td>
                 <td style="padding: 15px; text-align: center;">
-                    {% if alumno.en_turno %}
+                    {% if alumno.activo %}
                         <span style="background-color: #28a745; color: white; padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: bold;">Activo</span>
                     {% else %}
                         <span style="background-color: #e9ecef; color: #6c757d; padding: 5px 12px; border-radius: 5px; font-size: 12px;">Ausente</span>
