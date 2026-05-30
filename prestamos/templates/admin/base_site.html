@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ title }} | Panel de Administración{% endblock %}
+
+{% block branding %}
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-right: 20px;">
+    
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">Administración del Sistema</a>
+    </h1>
+    
+    <a href="/" style="background-color: #17a2b8; color: white; padding: 8px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+        🏠 Volver al Inicio de la App
+    </a>
+
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

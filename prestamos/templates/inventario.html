@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Inventario - Sistema{% endblock %}
+
+{% block nav_inventario %}activo{% endblock %}
+
+{% block contenido %}
+    <div class="tarjeta">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <h3 style="margin-top: 0; margin-bottom: 0; font-size: 18px; color: #003366;"> Inventario de Materiales</h3>
+                
+                <a href="/acceso-restringido/?next=/admin/prestamos/material/add/" style="background-color: #28a745; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold; display: inline-block;">+ Agregar Material</a>
+            </div>
+            
+            <input type="text" id="buscador_inventario" placeholder="Buscar material..." style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; width: 300px; box-sizing: border-box;">
+        </div>
+
+        <table style="width: 100%; text-align: left; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid #ccc; background-color: #f8f9fa;">
+                    <th style="padding: 12px;">Nombre del Material</th>
+                    <th style="padding: 12px;">En Préstamo</th>
+                    <th style="padding: 12px;">Disponibles</th>
+                    <th style="padding: 12px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla_inventario">
+                {% for material in materiales %}
+                <tr class="fila-material" style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 12px; font-weight: 500; color: #333;">{{ material.nombre }}</td>
+                    
+                    <td style="padding: 12px;">
+                        {% if material.en_prestamo > 0 %}
+                            <span style="color: #ff9800; font-weight: bold;">{{ material.en_prestamo }} prestado(s)</span>
+                        {% else %}
+                            <span style="color: #999;">0</span>
+                        {% endif %}
+                    </td>
+
+                    <td style="padding: 12px;">
+                        {% if material.disponibles > 0 %}
+                            <span style="font-weight: bold; color: #333;">{{ material.disponibles }} en stock</span>
+                        {% else %}
+                            <span style="color: #dc3545; font-weight: bold;">Agotado (0)</span>
+                        {% endif %}
+                    </td>
+
+                    <td style="padding: 12px;">
+                        <a href="/acceso-restringido/?next=/admin/prestamos/material/{{ material.id }}/delete/" style="background-color: #dc3545; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 12px; font-weight: bold; display: inline-block;">Dar de baja</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #666; padding: 20px;">Aún no hay materiales registrados en el inventario.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        document.getElementById('buscador_inventario').addEventListener('keyup', function() {
+            let filtro = this.value.toLowerCase();
+            let filas = document.querySelectorAll('.fila-material');
+
+            filas.forEach(function(fila) {
+                let nombreMaterial = fila.querySelector('td').textContent.toLowerCase();
+                
+                if (nombreMaterial.includes(filtro)) {
+                    fila.style.display = '';
+                } else {
+                    fila.style.display = 'none';
+                }
+            });
+        });
+    </script>
+{% endblock %}

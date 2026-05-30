@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Servicio Social - Checador{% endblock %}
+
+{% block contenido %}
+<script src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+<div style="text-align: center; margin-top: 10px;">
+    <h2>Control de Asistencia con Reconocimiento Facial</h2>
+    <p id="mensaje-estado" style="font-weight: bold; color: orange;">Por favor espera (puede tardar unos segundos).</p>
+</div>
+
+<div style="display: flex; justify-content: center; align-items: flex-start; gap: 30px; margin-top: 20px; flex-wrap: wrap;">
+    <div>
+        <div style="position: relative; width: 640px; height: 480px; border: 4px solid #333; border-radius: 10px; overflow: hidden; background-color: #000; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+            <video id="camara" width="640" height="480" autoplay muted style="position: absolute; top: 0; left: 0;"></video>
+            <canvas id="lienzo" width="640" height="480" style="position: absolute; top: 0; left: 0; z-index: 10;"></canvas>
+        </div>
+        <div style="text-align: center; margin-top: 15px;">
+            <button id="btn-encender" style="background-color: #333; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; display: none; font-weight: bold;">
+                Encender Cámara
+            </button>
+        </div>
+    </div>
+
+    <div id="panel-controles" style="display: none; width: 350px;">
+        <div style="background: #e9ecef; padding: 25px; border-radius: 8px; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #333;">Detector de rostros</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 20px;">Mira a la cámara y presiona el botón para registrar tu entrada o salida.</p>
+            <button id="btn-checar-asistencia" style="background-color: #007bff; color: white; padding: 20px; width: 100%; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; box-shadow: 0 4px 6px rgba(0,123,255,0.3);">
+                Registrar 
+            </button>
+        </div>
+
+        <button id="btn-toggle-registro" style="background: none; color: #6c757d; border: 1px solid #6c757d; padding: 10px; width: 100%; border-radius: 5px; cursor: pointer; margin-bottom: 15px;">
+            + Agregar Nuevo Rostro (Admin)
+        </button>
+
+        <div id="caja-registro" style="display: none; background: #f8f9fa; padding: 25px; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <h4 style="margin-top: 0; text-align: center; color: #333;">Enrolamiento de Alumno</h4>
+            <label style="font-size: 14px; font-weight: bold; color: #555;">Número de Control:</label>
+            <input type="text" id="reg_control" placeholder="Ej. 21050012" style="width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;" autocomplete="off">
+            <label style="font-size: 14px; font-weight: bold; color: #555;">Nombre Completo:</label>
+            <input type="text" id="reg_nombre" placeholder="Nombre del alumno" style="width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 25px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;" autocomplete="off">
+            <button id="btn-guardar-rostro" style="background-color: #28a745; color: white; padding: 12px; width: 100%; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 15px;">
+                Capturar y Guardar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // TOKEN PARA SEGURIDAD (CRUCIAL PARA RENDER)
+    const csrftoken = '{{ csrf_token }}';
+
+    const video = document.getElementById('camara');
+    const canvas = document.getElementById('lienzo');
+    const btnEncender = document.getElementById('btn-encender');
+    const mensajeEstado = document.getElementById('mensaje-estado');
+    const panelControles = document.getElementById('panel-controles');
+    const cajaRegistro = document.getElementById('caja-registro');
+    const btnToggleRegistro = document.getElementById('btn-toggle-registro');
+
+    const RUTA_MODELOS = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
+
+    // Carga de modelos
+    Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(RUTA_MODELOS),
+        faceapi.nets.faceLandmark68Net.loadFromUri(RUTA_MODELOS),
+        faceapi.nets.faceRecognitionNet.loadFromUri(RUTA_MODELOS)
+    ]).then(() => {
+        mensajeEstado.innerText = " IA lista.";
+        mensajeEstado.style.color = "green";
+        btnEncender.style.display = 'inline-block'; 
+    }).catch(err => {
+        mensajeEstado.innerText = "Error al cargar la IA.";
+    });
+
+    btnEncender.addEventListener('click', async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            btnEncender.style.display = 'none';
+            panelControles.style.display = 'block'; 
+            mensajeEstado.innerText = "Cámara activa. Listo para operar.";
+        } catch (error) {
+            mensajeEstado.innerText = " Error: No se pudo acceder a la cámara.";
+        }
+    });
+
+    btnToggleRegistro.addEventListener('click', () => {
+        if (cajaRegistro.style.display === 'none') {
+            const password = prompt(" Ingresa la contraseña de admin");
+            if (password === "Extra2026") { 
+                cajaRegistro.style.display = 'block';
+                btnToggleRegistro.innerText = "- Ocultar Formulario";
+            } else if (password !== null) { 
+                alert("❌ Contraseña incorrecta.");
+            }
+        } else {
+            cajaRegistro.style.display = 'none';
+            btnToggleRegistro.innerText = "+ Agregar Nuevo Rostro (Admin)";
+        }
+    });
+
+    // --- CHECAR ASISTENCIA ---
+    const btnChecar = document.getElementById('btn-checar-asistencia');
+    btnChecar.addEventListener('click', async () => {
+        mensajeEstado.innerText = "Reconociendo...";
+        const deteccion = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+        
+        if (deteccion) {
+            fetch('/api/marcar-asistencia/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify({ datos_faciales: Array.from(deteccion.descriptor) })
+            })
+            .then(res => res.json())
+            .then(data => alert(data.mensaje))
+            .catch(err => alert("Error de conexión"));
+        } else {
+            alert("No se detectó rostro.");
+        }
+    });
+
+    // --- REGISTRAR ---
+    const btnGuardarRostro = document.getElementById('btn-guardar-rostro');
+    btnGuardarRostro.addEventListener('click', async () => {
+        const numControl = document.getElementById('reg_control').value;
+        const nombre = document.getElementById('reg_nombre').value;
+        
+        const deteccion = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+        
+        if (deteccion) {
+            fetch('/api/registrar-rostro/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify({ numero_control: numControl, nombre_completo: nombre, datos_faciales: Array.from(deteccion.descriptor) })
+            })
+            .then(res => res.json())
+            .then(data => alert(data.status === 'success' ? "¡Éxito!" : "Error"))
+            .catch(err => alert("Error de comunicación"));
+        }
+    });
+</script>
+{% endblock %}

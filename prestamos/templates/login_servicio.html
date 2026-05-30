@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro - Servicio Social</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .caja-login { background-color: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; border-top: 5px solid #005b9f; }
+        .caja-login h2 { color: #003366; margin-top: 0; }
+        .caja-login p { color: #555; margin-bottom: 25px; }
+        .input-escaner { width: 90%; padding: 15px; margin-bottom: 15px; border: 2px dashed #005b9f; border-radius: 8px; font-size: 18px; text-align: center; background-color: #f8f9fa; }
+        .btn-registrar { background-color: #005b9f; color: white; border: none; padding: 12px; width: 100%; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .btn-cancelar { background-color: transparent; color: #dc3545; border: none; margin-top: 15px; text-decoration: underline; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="caja-login">
+        <h2>Registro de Horas</h2>
+        <p>Escanea tu credencial escolar para registrar tu entrada o salida.</p>
+        
+        <input type="text" class="input-escaner" placeholder="Esperando escaneo..." autofocus>
+        
+        <button class="btn-registrar">Registrar Manualmente</button>
+        <br>
+        <a href="/servicio-social/"><button class="btn-cancelar">Cancelar</button></a>
+    </div>
+</body>
+</html>

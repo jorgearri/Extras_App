@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Panel de Servicio Social{% endblock %}
+
+{% block nav_panel_servicio %}activo{% endblock %}
+
+{% block contenido %}
+<div style="max-width: 950px; margin: 30px auto; font-family: Arial, sans-serif;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 20px;">
+        <h2 style="color: #333; margin: 0;">Registro de Horas (Meta: 480h)</h2>
+        <div style="display: flex; gap: 10px;">
+            <button id="btn-horas-manuales" style="background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+                Agregar Horas Manuales
+            </button>
+            <a href="{% url 'servicio_social' %}" style="background-color: #6c757d; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Volver al Checador
+            </a>
+        </div>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;">
+        <thead>
+            <tr style="background-color: #343a40; color: white; text-align: left;">
+                <th style="padding: 15px;">Num. Control</th>
+                <th style="padding: 15px;">Nombre</th>
+                <th style="padding: 15px; text-align: center;">Total Horas</th>
+                <th style="padding: 15px; text-align: center;">Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for alumno in datos %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 15px;">{{ alumno.numero_control }}</td>
+                <td style="padding: 15px; font-weight: bold; color: #333;">{{ alumno.nombre_completo }}</td>
+                <td style="padding: 15px; text-align: center; font-weight: bold; color: #007bff; font-size: 16px;">
+                    {{ alumno.horas_acumuladas }} / 480h
+                </td>
+                <td style="padding: 15px; text-align: center;">
+                    {% if alumno.en_turno %}
+                        <span style="background-color: #28a745; color: white; padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: bold;">Activo</span>
+                    {% else %}
+                        <span style="background-color: #e9ecef; color: #6c757d; padding: 5px 12px; border-radius: 5px; font-size: 12px;">Ausente</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="padding: 20px; text-align: center;">No hay registros aún.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="modalManual" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000;">
+    <div style="background-color: white; max-width: 400px; margin: 150px auto; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <h3 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">Asignar Horas Externas</h3>
+        
+        <div style="margin-top: 15px;">
+            <label style="font-size: 14px; font-weight: bold; color: #555;">Número de Control Alumno:</label>
+            <input type="text" id="manual_control" placeholder="Ej. 21050012" style="width:100%; padding:10px; margin-top:5px; margin-bottom:15px; border:1px solid #ccc; border-radius:4px; box-sizing: border-box;">
+            
+            <label style="font-size: 14px; font-weight: bold; color: #555;">Horas a añadir:</label>
+            <input type="number" id="manual_horas" min="1" value="1" style="width:100%; padding:10px; margin-top:5px; margin-bottom:20px; border:1px solid #ccc; border-radius:4px; box-sizing: border-box;">
+            
+            <button id="btn-confirmar-guardado" style="width:100%; background-color:#28a745; color:white; border:none; padding:12px; border-radius:4px; cursor:pointer; font-weight: bold; font-size: 15px;">Guardar Horas</button>
+            <button type="button" onclick="document.getElementById('modalManual').style.display='none'" style="width:100%; border:none; color:gray; margin-top:10px; cursor:pointer; background: none; font-size: 14px;">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const btnManuales = document.getElementById('btn-horas-manuales');
+    const modalManual = document.getElementById('modalManual');
+    const btnConfirmar = document.getElementById('btn-confirmar-guardado');
+
+    // Validación de seguridad para abrir el modal
+    btnManuales.addEventListener('click', () => {
+        const password = prompt("Ingresa la contraseña de admin para agregar horas manuales:");
+        if (password === "Extra2026") {
+            modalManual.style.display = 'block';
+        } else if (password !== null) {
+            alert("Contraseña incorrecta. Acceso denegado.");
+        }
+    });
+
+    // Envío de datos por AJAX a Django
+    btnConfirmar.addEventListener('click', (e) => {
+        e.preventDefault(); // Detiene comportamientos asíncronos duplicados o recargas
+
+        const numControl = document.getElementById('manual_control').value.trim();
+        const horas = document.getElementById('manual_horas').value;
+
+        if(!numControl || !horas) {
+            alert("Por favor, llena todos los campos obligatorios.");
+            return;
+        }
+
+        fetch('/api/agregar-horas-manual/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ numero_control: numControl, horas: parseInt(horas) })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                alert(data.mensaje);
+                modalManual.style.display = 'none';
+                // Limpiamos el modal
+                document.getElementById('manual_control').value = '';
+                document.getElementById('manual_horas').value = '1';
+                // Recargamos la tabla para ver reflejado el cambio
+                window.location.reload();
+            } else {
+                alert("Error: " + data.mensaje);
+            }
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("No se pudo conectar con el servidor.");
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block titulo %}Seguridad - Inventario{% endblock %}
+
+{% block contenido %}
+    <div class="tarjeta" style="max-width: 400px; margin: 50px auto; text-align: center;">
+        <h3> Acceso Restringido</h3>
+        <p>Ingresa la clave maestra para modificar el inventario.</p>
+        
+        <form method="POST">
+            {% csrf_token %} <input type="password" name="clave_secreta" placeholder="Clave de administrador" style="width: 90%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;" required>
+            
+            {% if error %}
+                <p style="color: #dc3545; font-size: 14px; font-weight: bold;">❌ {{ error }}</p>
+            {% endif %}
+            
+            <button type="submit" class="btn-agregar" style="width: 100%;">Desbloquear</button>
+        </form>
+        
+        <br>
+        <a href="/inventario/" style="text-decoration: none; color: #005b9f;">Volver al inventario</a>
+    </div>
+{% endblock %}

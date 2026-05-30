@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SIGISSE</title>
+    <style>
+        * { box-sizing: border-box; } /* Esto evita que los elementos se corten */
+        body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        .barra-superior { 
+            height: 60px; 
+            background-color: #003366; 
+            color: white; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 0 30px; /* Más espacio a los lados para que el botón no toque el borde */
+            flex-shrink: 0;
+            z-index: 1000;
+        }
+        
+        .contenedor-principal { display: flex; flex: 1; overflow: hidden; }
+        
+        .menu-lateral { 
+            width: 250px; 
+            background-color: white; 
+            height: 100%; 
+            padding: 20px 0; 
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05); 
+            flex-shrink: 0;
+        }
+        
+        .menu-btn { padding: 15px 20px; color: #555; text-decoration: none; font-weight: bold; display: block; }
+        .menu-btn:hover { background-color: #f8f9fa; color: #003366; }
+        
+        .contenido { flex: 1; padding: 30px; overflow-y: auto; }
+        
+        /* Estilo elegante para el botón de salir */
+        .btn-salir {
+            background-color: #dc3545; 
+            color: white; 
+            padding: 8px 16px; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            font-weight: bold; 
+            font-size: 14px;
+        }
+        .btn-salir:hover { background-color: #c82333; }
+    </style>
+</head>
+<body>
+    <div class="barra-superior">
+        <h2 style="margin: 0; font-size: 18px;">≡ Sistema de Préstamo</h2>
+        <a href="{% url 'logout' %}" class="btn-salir">Salir</a>
+    </div>
+    
+    <div class="contenedor-principal">
+        <div class="menu-lateral">
+            <a href="{% url 'prestamos' %}" class="menu-btn">Préstamos</a>
+            <a href="{% url 'inventario' %}" class="menu-btn">Inventario</a>
+            <a href="{% url 'servicio_social' %}" class="menu-btn">Servicio Social</a>
+            <a href="{% url 'panel_servicio' %}" class="menu-btn">Horas Servicio</a>
+        </div>
+        
+        <div class="contenido">
+            {% block contenido %}
+            {% endblock %}
+        </div>
+    </div>
+</body>
+</html>
