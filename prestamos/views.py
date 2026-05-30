@@ -37,7 +37,9 @@ def inventario(request):
 @login_required
 def prestamos(request):
     if request.method == 'POST':
+        # --- Lógica unificada para procesar el préstamo ---
         try:
+            # Captura de datos flexible (JSON o Formulario)
             if request.content_type == 'application/json':
                 data = json.loads(request.body)
                 nombre_alumno = data.get('nombre_alumno')
@@ -48,42 +50,37 @@ def prestamos(request):
                 material_id = request.POST.get('material')
                 cantidad = int(request.POST.get('cantidad', 1))
 
-            material = Material.objects.get(id=material_id)
+            # Obtención y validación de material
+            material = get_object_or_404(Material, id=material_id)
 
             if material.cantidad < cantidad:
-                if request.content_type == 'application/json':
-                    return JsonResponse({'status': 'error', 'mensaje': f'No hay suficiente {material.nombre} en inventario.'})
-                return redirect('prestamos')
+                return JsonResponse({'status': 'error', 'mensaje': f'Stock insuficiente. Solo quedan {material.cantidad}.'})
 
+            # Ejecución de la transacción
             material.cantidad -= cantidad
             material.save()
-
+            
             Prestamo.objects.create(
                 nombre_alumno=nombre_alumno,
                 material=material,
-                cantidad=cantidad
+                cantidad=cantidad,
+                estado='En Prestamo' # Aseguramos un estado inicial claro
             )
 
-            if request.content_type == 'application/json':
-                return JsonResponse({'status': 'success', 'mensaje': 'Préstamo registrado exitosamente.'})
-            return redirect('prestamos')
-
-        except Material.DoesNotExist:
-            if request.content_type == 'application/json':
-                return JsonResponse({'status': 'error', 'mensaje': 'El material no existe.'})
+            return JsonResponse({'status': 'success', 'mensaje': 'Préstamo registrado exitosamente.'})
+            
         except Exception as e:
-            if request.content_type == 'application/json':
-                return JsonResponse({'status': 'error', 'mensaje': str(e)})
+            return JsonResponse({'status': 'error', 'mensaje': f'Error al guardar: {str(e)}'})
 
-    # Esta parte se ejecuta siempre, asegurando que la página cargue los datos correctamente
+    # --- Lógica de renderizado ---
     materiales_disponibles = Material.objects.filter(cantidad__gt=0)
+    # Filtramos usando el campo 'estado' para que no truene si no existe 'devuelto'
     prestamos_activos = Prestamo.objects.exclude(estado='Devuelto').order_by('-id')
 
-    contexto = {
+    return render(request, 'prestamos.html', {
         'materiales': materiales_disponibles,
         'prestamos': prestamos_activos
-    }
-    return render(request, 'prestamos.html', contexto)
+    })
 
 def panel_principal(request): 
     return render(request, 'panel.html')
