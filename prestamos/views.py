@@ -46,7 +46,8 @@ def servicio_social(request):
 
 @login_required
 def panel_servicio(request):
-    return render(request, 'panel_servicio.html', {'prestadores': PrestadorServicio.objects.all()})
+    return render(request, 'panel_servicio.html', {'datos': PrestadorServicio.objects.all()})
+
 
 # --- GESTIÓN RÁPIDA ---
 @login_required
