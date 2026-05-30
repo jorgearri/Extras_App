@@ -35,7 +35,7 @@ def inventario(request):
 
 @login_required
 def prestamos(request):
-    return render(request, 'prestamos.html', {'prestamos': Prestamo.objects.filter(fecha_prestamo__date=date.today()).order_by('-id')})
+    return render(request, 'prestamos.html', {'prestamos': Prestamo.objects.all().order_by('-id')})
 
 def panel_principal(request): 
     return render(request, 'panel.html')
@@ -150,24 +150,24 @@ def agregar_horas_manual_api(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            # Ahora sí busca por numero_control correctamente
             no_control = data.get('numero_control')
             horas_nuevas = data.get('horas', 0)
 
-            # Buscamos al alumno por su número de control
             prestador = PrestadorServicio.objects.get(numero_control=no_control)
 
-            # Si sus horas están vacías (Nulas), las empezamos en 0
+            # Si estaba vacío (None), lo iniciamos en 0
             if not prestador.horas_acumuladas:
                 prestador.horas_acumuladas = 0
                 
-            # Sumamos las horas nuevas
+            # Sumamos las horas
             prestador.horas_acumuladas += int(horas_nuevas)
             prestador.save()
 
-            return JsonResponse({'status': 'success', 'mensaje': f'¡Se agregaron {horas_nuevas} horas a {prestador.nombre_completo}!'})
+            return JsonResponse({'status': 'success', 'mensaje': f'¡Éxito! Se agregaron {horas_nuevas} horas a {prestador.nombre_completo}.'})
             
         except PrestadorServicio.DoesNotExist:
-            return JsonResponse({'status': 'error', 'mensaje': 'Alumno no encontrado. Verifica el número de control.'})
+            return JsonResponse({'status': 'error', 'mensaje': 'Alumno no encontrado. Verifica el Número de Control.'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'mensaje': str(e)})
             
