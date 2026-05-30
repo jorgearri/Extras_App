@@ -37,9 +37,7 @@ def inventario(request):
 @login_required
 def prestamos(request):
     if request.method == 'POST':
-        # --- Lógica unificada para procesar el préstamo ---
         try:
-            # Captura de datos flexible (JSON o Formulario)
             if request.content_type == 'application/json':
                 data = json.loads(request.body)
                 nombre_alumno = data.get('nombre_alumno')
@@ -50,13 +48,14 @@ def prestamos(request):
                 material_id = request.POST.get('material')
                 cantidad = int(request.POST.get('cantidad', 1))
 
-            # Obtención y validación de material
-            material = get_object_or_404(Material, id=material_id)
+            # Blindaje: buscamos sin explotar si no existe
+            material = Material.objects.filter(id=material_id).first()
+            if not material:
+                return JsonResponse({'status': 'error', 'mensaje': 'El material no existe en la base de datos.'})
 
             if material.cantidad < cantidad:
                 return JsonResponse({'status': 'error', 'mensaje': f'Stock insuficiente. Solo quedan {material.cantidad}.'})
 
-            # Ejecución de la transacción
             material.cantidad -= cantidad
             material.save()
             
@@ -64,7 +63,7 @@ def prestamos(request):
                 nombre_alumno=nombre_alumno,
                 material=material,
                 cantidad=cantidad,
-                estado='En Prestamo' # Aseguramos un estado inicial claro
+                estado='En Prestamo'
             )
 
             return JsonResponse({'status': 'success', 'mensaje': 'Préstamo registrado exitosamente.'})
@@ -72,10 +71,12 @@ def prestamos(request):
         except Exception as e:
             return JsonResponse({'status': 'error', 'mensaje': f'Error al guardar: {str(e)}'})
 
-    # --- Lógica de renderizado ---
     materiales_disponibles = Material.objects.filter(cantidad__gt=0)
-    # Filtramos usando el campo 'estado' para que no truene si no existe 'devuelto'
-    prestamos_activos = Prestamo.objects.exclude(estado='Devuelto').order_by('-id')
+    # Evitamos errores si no existe el campo estado
+    try:
+        prestamos_activos = Prestamo.objects.exclude(estado='Devuelto').order_by('-id')
+    except:
+        prestamos_activos = Prestamo.objects.all().order_by('-id')
 
     return render(request, 'prestamos.html', {
         'materiales': materiales_disponibles,
@@ -197,21 +198,15 @@ def agregar_horas_manual_api(request):
             horas_nuevas = data.get('horas', 0)
 
             prestador = PrestadorServicio.objects.get(numero_control=no_control)
-
             if not prestador.horas_acumuladas:
                 prestador.horas_acumuladas = 0
-                
             prestador.horas_acumuladas += int(horas_nuevas)
             prestador.save()
 
-            return JsonResponse({'status': 'success', 'mensaje': f'¡Éxito! Se agregaron {horas_nuevas} horas a {prestador.nombre_completo}.'})
-            
-        except PrestadorServicio.DoesNotExist:
-            return JsonResponse({'status': 'error', 'mensaje': 'Alumno no encontrado. Verifica el Número de Control.'})
+            return JsonResponse({'status': 'success', 'mensaje': f'¡Éxito! Se agregaron {horas_nuevas} horas.'})
         except Exception as e:
             return JsonResponse({'status': 'error', 'mensaje': str(e)})
-            
-    return JsonResponse({'status': 'error', 'mensaje': 'Método inválido.'})
+    return JsonResponse({'status': 'error'}, status=400)
 
 def acceso_admin_secreto(request):
     if request.method == 'POST':
