@@ -33,30 +33,37 @@ def inventario(request): return render(request, 'inventario.html', {'materiales'
 @login_required
 def prestamos(request):
     if request.method == 'POST':
-        # --- Lógica original restaurada ---
-        try:
-            num_control = request.POST.get('numero_control')
-            ids = request.POST.getlist('material_id[]')
-            cants = request.POST.getlist('cantidad[]')
-            
-            for i in range(len(ids)):
-                if ids[i]:
-                    material = Material.objects.filter(id=ids[i]).first()
-                    if material and material.cantidad >= int(cants[i]):
-                        material.cantidad -= int(cants[i])
+        # Obtenemos los datos del formulario (esto coincide con tus names en HTML)
+        num_control = request.POST.get('numero_control') 
+        material_ids = request.POST.getlist('material_id[]')
+        cantidades = request.POST.getlist('cantidad[]')
+
+        # Procesamos cada material
+        if num_control:
+            for i in range(len(material_ids)):
+                if material_ids[i]: # Si hay un ID de material
+                    m_id = material_ids[i]
+                    qty = int(cantidades[i])
+                    
+                    # Buscamos el material
+                    material = Material.objects.filter(id=m_id).first()
+                    
+                    if material and material.cantidad >= qty:
+                        # Restamos inventario
+                        material.cantidad -= qty
                         material.save()
-                        # Usamos los mismos campos que tenías al principio
+                        
+                        # Guardamos el préstamo
+                        # Usamos 'nombre_alumno' porque es lo que tu modelo espera
                         Prestamo.objects.create(
                             nombre_alumno=num_control, 
                             material=material, 
-                            cantidad=int(cants[i])
+                            cantidad=qty
                         )
-        except Exception:
-            pass # Si falla, simplemente recarga la página sin romper el servidor
-            
+        
         return redirect('prestamos')
 
-    # --- Renderizado ---
+    # Renderizado original (sin cambios)
     return render(request, 'prestamos.html', {
         'materiales': Material.objects.all(),
         'prestamos': Prestamo.objects.all().order_by('-id')
