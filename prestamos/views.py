@@ -150,12 +150,28 @@ def agregar_horas_manual_api(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            prestador = get_object_or_404(PrestadorServicio, id=data['id'])
-            AsistenciaServicio.objects.create(prestador=prestador, tipo='Entrada')
-            return JsonResponse({'status': 'ok'})
+            no_control = data.get('numero_control')
+            horas_nuevas = data.get('horas', 0)
+
+            # Buscamos al alumno por su número de control
+            prestador = PrestadorServicio.objects.get(numero_control=no_control)
+
+            # Si sus horas están vacías (Nulas), las empezamos en 0
+            if not prestador.horas_acumuladas:
+                prestador.horas_acumuladas = 0
+                
+            # Sumamos las horas nuevas
+            prestador.horas_acumuladas += int(horas_nuevas)
+            prestador.save()
+
+            return JsonResponse({'status': 'success', 'mensaje': f'¡Se agregaron {horas_nuevas} horas a {prestador.nombre_completo}!'})
+            
+        except PrestadorServicio.DoesNotExist:
+            return JsonResponse({'status': 'error', 'mensaje': 'Alumno no encontrado. Verifica el número de control.'})
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-    return JsonResponse({'status': 'error'}, status=400)
+            return JsonResponse({'status': 'error', 'mensaje': str(e)})
+            
+    return JsonResponse({'status': 'error', 'mensaje': 'Método inválido.'})
 
 def acceso_admin_secreto(request):
     if request.method == 'POST':
