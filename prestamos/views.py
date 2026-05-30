@@ -27,7 +27,8 @@ def logout_view(request):
 
 # --- VISTAS PROTEGIDAS ---
 @login_required
-def home(request): return render(request, 'home.html')
+def home(request): 
+    return render(request, 'home.html')
 
 @login_required
 def inventario(request):
@@ -35,38 +36,28 @@ def inventario(request):
 
 @login_required
 def prestamos(request):
-    def prestamos(request):
-    # --- 1. PROCESAR UN NUEVO PRÉSTAMO ---
     if request.method == 'POST':
         try:
-            # Opción A: Si viene por AJAX (JSON)
             if request.content_type == 'application/json':
                 data = json.loads(request.body)
                 nombre_alumno = data.get('nombre_alumno')
                 material_id = data.get('material_id')
                 cantidad = int(data.get('cantidad', 1))
-            # Opción B: Si viene por un formulario normal
             else:
                 nombre_alumno = request.POST.get('nombre_alumno')
                 material_id = request.POST.get('material')
                 cantidad = int(request.POST.get('cantidad', 1))
 
-            # Buscamos el material en el inventario
             material = Material.objects.get(id=material_id)
 
-            # Validamos que haya suficiente stock
             if material.cantidad < cantidad:
                 if request.content_type == 'application/json':
-                    return JsonResponse({'status': 'error', 'mensaje': f'No hay suficiente {material.nombre} en inventario. Solo quedan {material.cantidad}.'})
-                else:
-                    # Podrías agregar un mensaje de error usando messages.error() aquí
-                    return redirect('prestamos')
+                    return JsonResponse({'status': 'error', 'mensaje': f'No hay suficiente {material.nombre} en inventario.'})
+                return redirect('prestamos')
 
-            # Descontamos el material del almacén
             material.cantidad -= cantidad
             material.save()
 
-            # Guardamos el préstamo
             Prestamo.objects.create(
                 nombre_alumno=nombre_alumno,
                 material=material,
@@ -75,18 +66,16 @@ def prestamos(request):
 
             if request.content_type == 'application/json':
                 return JsonResponse({'status': 'success', 'mensaje': 'Préstamo registrado exitosamente.'})
-            else:
-                return redirect('prestamos')
+            return redirect('prestamos')
 
         except Material.DoesNotExist:
-             if request.content_type == 'application/json':
-                 return JsonResponse({'status': 'error', 'mensaje': 'El material seleccionado no existe.'})
+            if request.content_type == 'application/json':
+                return JsonResponse({'status': 'error', 'mensaje': 'El material no existe.'})
         except Exception as e:
             if request.content_type == 'application/json':
-                 return JsonResponse({'status': 'error', 'mensaje': str(e)})
+                return JsonResponse({'status': 'error', 'mensaje': str(e)})
 
-    # --- 2. MOSTRAR LA PÁGINA (Si no es POST) ---
-    materiales_disponibles = Material.objects.filter(cantidad__gt=0) # Solo los que tienen stock
+    materiales_disponibles = Material.objects.filter(cantidad__gt=0)
     prestamos_activos = Prestamo.objects.filter(devuelto=False).order_by('-id')
 
     contexto = {
@@ -186,7 +175,6 @@ def marcar_asistencia_api(request):
                         break
             
             if mejor_match:
-                # La magia del Toggle: ¿Ya estaba adentro?
                 if mejor_match.activo:
                     AsistenciaServicio.objects.create(prestador=mejor_match, tipo='Salida')
                     mejor_match.activo = False
@@ -208,17 +196,14 @@ def agregar_horas_manual_api(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            # Ahora sí busca por numero_control correctamente
             no_control = data.get('numero_control')
             horas_nuevas = data.get('horas', 0)
 
             prestador = PrestadorServicio.objects.get(numero_control=no_control)
 
-            # Si estaba vacío (None), lo iniciamos en 0
             if not prestador.horas_acumuladas:
                 prestador.horas_acumuladas = 0
                 
-            # Sumamos las horas
             prestador.horas_acumuladas += int(horas_nuevas)
             prestador.save()
 
