@@ -99,20 +99,31 @@ def servicio_social(request):
 def panel_servicio(request):
     prestadores = PrestadorServicio.objects.all()
     for p in prestadores:
-        # Buscamos el Alumno asociado para acceder al RegistroServicio
         alumno = Alumno.objects.filter(numero_control=p.numero_control).first()
         total_minutos = 0
         if alumno:
             registro, _ = RegistroServicio.objects.get_or_create(alumno=alumno)
-            total_minutos = registro.horas_acumuladas # Lo usamos como minutos totales
+            total_minutos = registro.horas_acumuladas 
         
-        # Le pegamos las horas y minutos calculados para que el HTML los pueda leer
         p.horas_calculadas = total_minutos // 60
         p.minutos_calculados = total_minutos % 60
         
-    return render(request, 'panel_servicio.html', {'datos': prestadores})
+    #calendario
+    fecha_busqueda = request.GET.get('fecha_busqueda')
 
-# --- GESTIÓN RÁPIDA ---
+    if fecha_busqueda:
+       #filtro del día
+        historial_asistencias = AsistenciaServicio.objects.filter(fecha__date=fecha_busqueda).order_by('-fecha')
+    else:
+        #si no hay fecha seleccionada mustra los ultimos 100 movimientos
+        historial_asistencias = AsistenciaServicio.objects.all().order_by('-fecha')[:100]
+        
+    return render(request, 'panel_servicio.html', {
+        'datos': prestadores,
+        'historial': historial_asistencias,
+        'fecha_seleccionada': fecha_busqueda # Mantiene la fecha en el calendario
+    })
+# Gestion rapida
 @login_required
 def registrar_alumno_rapido(request):
     if request.method == 'POST':

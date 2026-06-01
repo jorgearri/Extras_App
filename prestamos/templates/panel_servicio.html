@@ -7,6 +7,7 @@
 {% block contenido %}
 <div style="max-width: 950px; margin: 30px auto; font-family: Arial, sans-serif;">
     
+    <!-- TABLA 1: TOTAL DE HORAS -->
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 20px;">
         <h2 style="color: #333; margin: 0;">Registro de Horas (Meta: 480h)</h2>
         <div style="display: flex; gap: 10px;">
@@ -25,7 +26,7 @@
                 <th style="padding: 15px;">Num. Control</th>
                 <th style="padding: 15px;">Nombre</th>
                 <th style="padding: 15px; text-align: center;">Total Horas</th>
-                <th style="padding: 15px; text-align: center;">Estado</th>
+                <th style="padding: 15px; text-align: center;">Estado actual</th>
             </tr>
         </thead>
         <tbody>
@@ -38,7 +39,7 @@
                 </td>
                 <td style="padding: 15px; text-align: center;">
                     {% if alumno.activo %}
-                        <span style="background-color: #28a745; color: white; padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: bold;">Activo</span>
+                        <span style="background-color: #28a745; color: white; padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: bold;">Adentro</span>
                     {% else %}
                         <span style="background-color: #e9ecef; color: #6c757d; padding: 5px 12px; border-radius: 5px; font-size: 12px;">Ausente</span>
                     {% endif %}
@@ -51,8 +52,63 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- TABLA 2: HISTORIAL CON CALENDARIO -->
+    <div style="margin-top: 50px; border-bottom: 2px solid #17a2b8; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <h2 style="color: #333; margin: 0;">Historial Diario de Movimientos</h2>
+        
+        <!-- ESTO ES EL CALENDARIO -->
+        <form method="GET" style="display: flex; gap: 10px; align-items: center; background-color: #f8f9fa; padding: 8px 15px; border-radius: 6px; border: 1px solid #ddd;">
+            <label for="fecha_busqueda" style="font-weight: bold; color: #555; font-size: 14px; margin: 0;">Buscar por fecha:</label>
+            <input type="date" name="fecha_busqueda" id="fecha_busqueda" value="{{ fecha_seleccionada|default_if_none:'' }}" 
+                   onchange="this.form.submit()" 
+                   style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; outline: none;">
+            
+            {% if fecha_seleccionada %}
+                <a href="?" style="color: #dc3545; text-decoration: none; font-weight: bold; font-size: 14px; margin-left: 10px;">Quitar filtro</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;">
+        <thead>
+            <tr style="background-color: #343a40; color: white; text-align: left;">
+                <th style="padding: 15px;">Fecha</th>
+                <th style="padding: 15px;">Nombre del Alumno</th>
+                <th style="padding: 15px;">Acción</th>
+                <th style="padding: 15px;">Hora Exacta</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for registro in historial %}
+            <tr style="border-bottom: 1px solid #f1f1f1;">
+                <td style="padding: 15px; color: #666; font-size: 14px;">{{ registro.fecha|date:"d \d\e F" }}</td>
+                <td style="padding: 15px; font-weight: bold; color: #333;">{{ registro.prestador.nombre_completo }}</td>
+                <td style="padding: 15px; font-weight: bold;">
+                    {% if registro.tipo == 'Entrada' %}
+                        <span style="color: #28a745;">Entró</span>
+                    {% else %}
+                        <span style="color: #dc3545;">Salió</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 15px; color: #007bff; font-weight: bold;">{{ registro.fecha|time:"h:i a" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="padding: 20px; text-align: center; color: #777;">
+                    {% if fecha_seleccionada %}
+                        No hay entradas ni salidas registradas en esta fecha.
+                    {% else %}
+                        Aún no hay escaneos en el checador facial.
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 
+<!-- MODAL DE HORAS MANUALES -->
 <div id="modalManual" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 2000;">
     <div style="background-color: white; max-width: 400px; margin: 150px auto; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
         <h3 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">Asignar Horas Externas</h3>
@@ -83,7 +139,6 @@
     const modalManual = document.getElementById('modalManual');
     const btnConfirmar = document.getElementById('btn-confirmar-guardado');
 
-    // Validación de seguridad para abrir el modal
     btnManuales.addEventListener('click', () => {
         const password = prompt("Ingresa la contraseña de admin para agregar horas manuales:");
         if (password === "Extra2026") {
@@ -93,13 +148,12 @@
         }
     });
 
-    // Envío de datos por AJAX a Django
     btnConfirmar.addEventListener('click', (e) => {
         e.preventDefault(); 
 
         const numControl = document.getElementById('manual_control').value.trim();
         const horas = document.getElementById('manual_horas').value;
-        const minutos = document.getElementById('manual_minutos').value; // EXTRAEMOS MINUTOS
+        const minutos = document.getElementById('manual_minutos').value; 
 
         if(!numControl || (horas === "0" && minutos === "0")) {
             alert("Por favor, ingresa el número de control y una cantidad de tiempo a añadir.");
@@ -112,7 +166,6 @@
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            // SE AÑADIERON LOS MINUTOS AL BODY
             body: JSON.stringify({ 
                 numero_control: numControl, 
                 horas: parseInt(horas) || 0, 
